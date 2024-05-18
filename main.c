@@ -27,44 +27,17 @@ int *block_status;
 index_record *begin;
 uint64_t count = 0;
 
-// int cmp(const void *a, const void *b)
-// {
-//     struct index_s *index_a = (struct index_s *)a;
-//     struct index_s *index_b = (struct index_s *)b;
-//     if (index_a->time_mark < index_b->time_mark)
-//         return -1;
-//     else if (index_a->time_mark > index_b->time_mark)
-//         return 1;
-//     else
-//         return 0;
-// }
-
-// int cmp(const void *a, const void *b)
-// {
-//     struct index_s num1 = *((struct index_s *)a);
-//     struct index_s num2 = *((struct index_s *)b);
-//     if (num1.time_mark < num2.time_mark)
-//         return -1;
-//     else if (num1.time_mark > num2.time_mark)
-//         return 1;
-//     else
-//         return 0;
-// }
-
-// int next_block()
-// {
-//     int number = -1;
-//     pthread_mutex_lock(&mutex);
-//     for (int i = 0; i < block_count; i++)
-//         if (!block_status[i])
-//         {
-//             block_status[i] = 1;
-//             number = i;
-//             break;
-//         }
-//     pthread_mutex_unlock(&mutex);
-//     return number;
-// }
+int cmp(const void *a, const void *b)
+{
+    struct index_s num1 = *((struct index_s *)a);
+    struct index_s num2 = *((struct index_s *)b);
+    if (num1.time_mark < num2.time_mark)
+        return -1;
+    else if (num1.time_mark > num2.time_mark)
+        return 1;
+    else
+        return 0;
+}
 
 // int merger_blocks(int step)
 // {
@@ -118,27 +91,42 @@ uint64_t count = 0;
 //     }
 // }
 
-// void sort(void *arg)
-// {
-//     int argument = *(int *)arg;
-//     int number = argument;
-//     // printf("sort\n");
-//     pthread_barrier_wait(&barrier);
-//     // printf("sort bef barr\n");
-//     while (number >= 0)
-//     {
-//         // struct index_s *temp = begin + block_size * number;
-//         struct index_s *temp = &(begin->idx[number]);
-//         printf("qsort num %d\t in %ld\n", number, temp->recno);
-//         qsort(temp, block_size, sizeof(struct index_s), cmp);
-//         printf("qsort\n");
-//         number = next_block();
-//         if (number == -1)
-//             break;
-//     }
-//     pthread_barrier_wait(&barrier);
-//     merge(argument);
-// }
+int next_block()
+{
+    int number = -1;
+    pthread_mutex_lock(&mutex);
+    for (int i = 0; i < block_count; i++)
+        if (!block_status[i])
+        {
+            block_status[i] = 1;
+            number = i;
+            break;
+        }
+    pthread_mutex_unlock(&mutex);
+    return number;
+}
+
+void *sort(void *arg)
+{
+    int argument = *(int *)arg;
+    int number = argument;
+    // printf("sort\n");
+    pthread_barrier_wait(&barrier);
+    // printf("sort bef barr\n");
+    while (number >= 0)
+    {
+        struct index_s *temp = &(begin[number * block_size]);
+        qsort(temp, block_size, sizeof(struct index_s), cmp);
+        // printf("qsort num %d\t in %ld\n", number, temp->recno);
+        // qsort(temp, block_size, sizeof(struct index_s), cmp);
+        // printf("qsort ex num %d\t in %ld\n", number, temp->recno);
+        number = next_block();
+        if (number == -1)
+            break;
+    }
+    pthread_barrier_wait(&barrier);
+    // merge(argument);
+}
 
 int main(int argc, char *argv[])
 {
@@ -152,7 +140,7 @@ int main(int argc, char *argv[])
     records_count = atoi(argv[1]);
     if (records_count % 256 != 0)
     {
-        printf("Error memsize\n");
+        printf("Error records_count\n");
         return 1;
     }
     block_count = atoi(argv[2]);
@@ -202,25 +190,44 @@ int main(int argc, char *argv[])
     // memcpy(buffer,begin, records_count * sizeof(struct index_s));
     // printf("%ld\n", begin->idx[5].recno);
     block_status = (int *)calloc(block_count, sizeof(int));
-    // for (int i = 0; i < thread_count; i++)
-    //     block_status[i] = 1;
+    for (int i = 0; i < thread_count; i++)
+        block_status[i] = 1;
     // for (int i = thread_count; i < block_count; i++)
     //     block_status[i] = 0;
-
-    // pthread_t *threads = malloc(thread_count * sizeof(pthread_t));
-    // int *arg = malloc(thread_count * sizeof(int));
-    // for (int i = 0; i < thread_count; i++)
+    // block_status[0] = 1;
+    // int num = 0;
+    // while (num >= 0)
     // {
-    //     arg[i] = i;
-    //     pthread_create(&threads[i], NULL, sort, &arg[i]);
+    //     struct index_s *temp = &(begin[num * block_size]);
+    //     qsort(temp, block_size, sizeof(struct index_s), cmp);
+    //     for (int i = 0; i < block_size; i++)
+    //     {
+    //         printf("%.3ld\t%lf\n", temp[i].recno, temp[i].time_mark);
+    //     }
+    //     printf("=========================================\n");
+    //     //     printf("qsort num %d\t in %ld\n", num, temp->recno);
+    //     // printf("qsort ex num %d\t in %ld\n", num, temp->recno);
+    //     num = next_block();
+    //     if (num == -1)
+    //         break;
     // }
 
-    // for (int i = 0; i < thread_count; i++)
-    //     pthread_join(threads[i], 0);
-    munmap(begin - sizeof(uint64_t), st.st_size);
-    // free(threads);
-    // free(block_status);
+    pthread_t *threads = (pthread_t *)malloc(thread_count * sizeof(pthread_t));
+    int *arg = (int *)malloc(thread_count * sizeof(int));
+    for (int i = 0; i < thread_count; i++)
+    {
+        arg[i] = i;
+        pthread_create(&threads[i], NULL, sort, &arg[i]);
+    }
+    free(arg);
+
+    for (int i = 0; i < thread_count; i++)
+        pthread_join(threads[i], 0);
+
+    free(threads);
+    free(block_status);
     fclose(file);
+    munmap(begin - sizeof(uint64_t), st.st_size);
     pthread_barrier_destroy(&barrier);
     pthread_mutex_destroy(&mutex);
     return 0;
