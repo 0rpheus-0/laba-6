@@ -39,24 +39,24 @@ int cmp(const void *a, const void *b)
         return 0;
 }
 
-// int merger_blocks(int step)
-// {
-//     int number = -1;
-//     pthread_mutex_lock(&mutex);
-//     for (int i = 0; i < thread_count / step; i++)
-//         if (block_status[i])
-//         {
-//             block_status[i] = 0;
-//             number = i;
-//             break;
-//         }
-//     pthread_mutex_unlock(&mutex);
-//     return number;
-// }
+int merger_blocks(int step)
+{
+    int number = -1;
+    pthread_mutex_lock(&mutex);
+    for (int i = 0; i < block_count / step; i++)
+        if (block_status[i])
+        {
+            block_status[i] = 0;
+            number = i;
+            break;
+        }
+    pthread_mutex_unlock(&mutex);
+    return number;
+}
 
 // void merge(int arg)
 // {
-//     printf("merge\n");
+//     // printf("merge\n");
 //     int step = 1;
 //     while (step <= block_count)
 //     {
@@ -68,22 +68,22 @@ int cmp(const void *a, const void *b)
 //             if (number == -1)
 //                 break;
 
-//             struct index_s *block = malloc(step * block_size * sizeof(struct index_s));
-//             memcpy(block, &(begin->idx[number]), step * block_size * sizeof(struct index_s));
+//             struct index_s *temp = malloc(step * block_size * sizeof(struct index_s));
+//             memcpy(temp, &(begin[number * block_size]), step * block_size * sizeof(struct index_s));
 
 //             int i = 0, j = step * block_size / 2, k = 0;
 //             while (i < step * block_size / 2 && j < step * block_size)
 //             {
-//                 if (cmp(&(block[i]), &(block[j])) == 1)
-//                     begin->idx[k++ + step * block_size * number] = block[j++];
+//                 if (cmp(&(temp[i * block_size]), &(temp[j * block_size])) == 1)
+//                     begin[k++ + step * block_size * number] = temp[j++];
 //                 else
-//                     begin->idx[k++ + step * block_size * number] = block[i++];
+//                     begin[k++ + step * block_size * number] = temp[i++];
 //             }
 //             while (j < step * block_size)
-//                 begin->idx[k++ + step * block_size * number] = block[j++];
+//                 begin[k++ + step * block_size * number] = temp[j++];
 //             while (i < step * block_size / 2)
-//                 begin->idx[k++ + step * block_size * number] = block[i++];
-//             free(block);
+//                 begin[k++ + step * block_size * number] = temp[i++];
+//             free(temp);
 //         }
 //         pthread_barrier_wait(&barrier);
 //         for (int i = 0; i < block_count; i++)
@@ -190,41 +190,77 @@ int main(int argc, char *argv[])
     // memcpy(buffer,begin, records_count * sizeof(struct index_s));
     // printf("%ld\n", begin->idx[5].recno);
     block_status = (int *)calloc(block_count, sizeof(int));
-    for (int i = 0; i < thread_count; i++)
+    // for (int i = 0; i < thread_count; i++)
+    //     block_status[i] = 1;
+    for (int i = 0; i < block_count; i++)
         block_status[i] = 1;
-    // for (int i = thread_count; i < block_count; i++)
-    //     block_status[i] = 0;
-    // block_status[0] = 1;
-    // int num = 0;
-    // while (num >= 0)
-    // {
-    //     struct index_s *temp = &(begin[num * block_size]);
-    //     qsort(temp, block_size, sizeof(struct index_s), cmp);
-    //     for (int i = 0; i < block_size; i++)
-    //     {
-    //         printf("%.3ld\t%lf\n", temp[i].recno, temp[i].time_mark);
-    //     }
-    //     printf("=========================================\n");
-    //     //     printf("qsort num %d\t in %ld\n", num, temp->recno);
-    //     // printf("qsort ex num %d\t in %ld\n", num, temp->recno);
-    //     num = next_block();
-    //     if (num == -1)
-    //         break;
-    // }
 
-    pthread_t *threads = (pthread_t *)malloc(thread_count * sizeof(pthread_t));
-    int *arg = (int *)malloc(thread_count * sizeof(int));
-    for (int i = 0; i < thread_count; i++)
+    int step = 1;
+    while (step < block_count)
     {
-        arg[i] = i;
-        pthread_create(&threads[i], NULL, sort, &arg[i]);
+        int number = 1;
+        step *= 2;
+        while (number >= 0)
+        {
+            // printf("merge\n");
+            number = merger_blocks(step);
+            if (number == -1)
+                break;
+
+            printf("num %d step %d mem %d\n", number, step, step * block_size);
+            struct index_s *temp = malloc(step * block_size * sizeof(struct index_s));
+            memcpy(temp, &(begin[number * block_size * step]), step * block_size * sizeof(struct index_s));
+            // printf("merge copy\n");
+            // printf("%.3ld\t%lf\n", temp->recno, temp->time_mark);
+            // printf("%.3ld\t%lf\n", (temp + step - 1)->recno, (temp + step - 1)->time_mark);
+            // printf("=======================================\n");
+            int i = 0, j = step * block_size / 2, k = 0;
+            // printf("%.3ld\t%lf\n", temp->recno, temp->time_mark);
+            // printf("%.3ld\t%lf\n", (temp + j)->recno, (temp + j)->time_mark);
+            // printf("%.3ld\t%lf\n", (begin + k)->recno, (begin + k)->time_mark);
+            // printf("=======================================\n");
+            while (i < step * block_size / 2 && j < step * block_size)
+            {
+                if (cmp(temp + block_size + i, temp + block_size + j) == 1)
+                    printf("%.3ld\t%lf\n", (temp + i)->recno, (temp + i++)->time_mark);
+                else
+                    printf("%.3ld\t%lf\n", (temp + j)->recno, (temp + j++)->time_mark);
+                // printf("%.3ld\t%lf\n", temp->recno, temp->time_mark);
+                // printf("%.3ld\t%lf\n", (temp + j)->recno, (temp + j)->time_mark);
+                printf("%.3ld\t%lf\n", (begin + k)->recno, (begin + k++)->time_mark);
+
+                // if (cmp(&(temp[i * block_size]), &(temp[j * block_size])) == 1)
+                //     begin[k++ + step * block_size * number] = temp[j++];
+                // else
+                //     begin[k++ + step * block_size * number] = temp[i++];
+                printf("----------------------------------------\n");
+            }
+            // while (j < step * block_size)
+            //     begin[k++ + step * block_size * number] = temp[j++];
+            // while (i < step * block_size / 2)
+            //     begin[k++ + step * block_size * number] = temp[i++];
+            free(temp);
+            // printf("merge\n");
+        }
+        printf("#########################################\n");
+        // pthread_barrier_wait(&barrier);
+        for (int i = 0; i < block_count; i++)
+            block_status[i] = 1;
     }
-    free(arg);
 
-    for (int i = 0; i < thread_count; i++)
-        pthread_join(threads[i], 0);
+    // pthread_t *threads = (pthread_t *)malloc(thread_count * sizeof(pthread_t));
+    // int *arg = (int *)malloc(thread_count * sizeof(int));
+    // for (int i = 0; i < thread_count; i++)
+    // {
+    //     arg[i] = i;
+    //     pthread_create(&threads[i], NULL, sort, &arg[i]);
+    // }
+    // free(arg);
 
-    free(threads);
+    // for (int i = 0; i < thread_count; i++)
+    //     pthread_join(threads[i], 0);
+
+    // free(threads);
     free(block_status);
     fclose(file);
     munmap(begin - sizeof(uint64_t), st.st_size);
