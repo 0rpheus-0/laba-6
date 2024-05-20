@@ -8,17 +8,13 @@ int main()
     uint64_t count;
 
     fread(&count, sizeof(uint64_t), 1, file);
-    // fseek(file, sizeof(struct index_s), SEEK_CUR);
-
     double temp_1;
     uint64_t temp_2;
-
     for (int i = 0; i < (int)count; i++)
     {
         fread(&temp_1, sizeof(double), 1, file);
         fread(&temp_2, sizeof(uint64_t), 1, file);
         printf("%.3ld\t%lf\n", temp_2, temp_1);
     }
-
     return 0;
 }
