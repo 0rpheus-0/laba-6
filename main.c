@@ -221,13 +221,22 @@ int main(int argc, char *argv[])
             // printf("=======================================\n");
             while (i < step * block_size / 2 && j < step * block_size)
             {
-                if (cmp(temp + block_size + i, temp + block_size + j) == 1)
-                    printf("%.3ld\t%lf\n", (temp + i)->recno, (temp + i++)->time_mark);
+                if (cmp(temp + i, temp + j) == 1)
+                // if ((temp + i)->time_mark > (temp + j)->time_mark)
+                {
+                    begin[k++] = temp[j++];
+                    // printf("%.3ld\t%lf\n", (temp + j)->recno, (temp + j)->time_mark);
+                }
                 else
-                    printf("%.3ld\t%lf\n", (temp + j)->recno, (temp + j++)->time_mark);
-                // printf("%.3ld\t%lf\n", temp->recno, temp->time_mark);
+                {
+                    begin[k++] = temp[i++];
+                    // printf("%.3ld\t%lf\n", (temp + i)->recno, (temp + i)->time_mark);
+                }
+                // printf("%.3ld\t%lf\n", (temp + i)->recno, (temp + i)->time_mark);
                 // printf("%.3ld\t%lf\n", (temp + j)->recno, (temp + j)->time_mark);
-                printf("%.3ld\t%lf\n", (begin + k)->recno, (begin + k++)->time_mark);
+                printf("%.3ld\t%lf\n", (begin + k)->recno, (begin + k)->time_mark);
+                // i++;
+                // j++;
 
                 // if (cmp(&(temp[i * block_size]), &(temp[j * block_size])) == 1)
                 //     begin[k++ + step * block_size * number] = temp[j++];
@@ -235,10 +244,10 @@ int main(int argc, char *argv[])
                 //     begin[k++ + step * block_size * number] = temp[i++];
                 printf("----------------------------------------\n");
             }
-            // while (j < step * block_size)
-            //     begin[k++ + step * block_size * number] = temp[j++];
-            // while (i < step * block_size / 2)
-            //     begin[k++ + step * block_size * number] = temp[i++];
+            while (j < step * block_size)
+                begin[k++] = temp[j++];
+            while (i < step * block_size / 2)
+                begin[k++] = temp[i++];
             free(temp);
             // printf("merge\n");
         }
