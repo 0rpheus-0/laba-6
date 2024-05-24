@@ -10,11 +10,9 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-int page_size;
 int block_count;
 int thread_count;
 int block_size;
-char *filename;
 uint64_t records_count;
 
 pthread_barrier_t barrier;

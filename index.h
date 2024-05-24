@@ -3,12 +3,12 @@
 
 typedef struct index_s
 {
-    double time_mark; // временная метка (модифицированная юлианская дата)
-    uint64_t recno;   // первичный индекс в таблице БД
+    double time_mark;
+    uint64_t recno;
 } index_record;
 
 typedef struct index_hdr_s
 {
-    uint64_t recsords;   // количество записей
-    struct index_s *idx; // массив записей в количестве records
+    uint64_t recsords;
+    struct index_s *idx;
 } data_type;
